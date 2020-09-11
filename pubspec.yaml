@@ -37,7 +37,7 @@ dev_dependencies:
   flutter_launcher_icons: ^0.7.5
 
 flutter_icons:
-  image_path: "assets/Wappen_Höpfigheim.png"
+  image_path: "assets/Wappen.png"
   android: true
   ios: true
 
@@ -54,8 +54,8 @@ flutter:
 
   # To add assets to your application, add an assets section, like this:
   assets:
-    - Wappen_Höpfigheim.png
-    - Nadel.png
+    - Wappen.png
+    - Wappen_gedreht.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware.

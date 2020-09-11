@@ -54,6 +54,7 @@ class _CompassWidgetState extends State<CompassWidget> {
   Position currentPosition;
 
   StreamSubscription<Position> positionStream;
+  StreamSubscription compassStream;
 
   String get _readout =>
       _heading.round() % 360 == 0 ? "0°" : _heading.toStringAsFixed(0) + '°';
@@ -61,15 +62,22 @@ class _CompassWidgetState extends State<CompassWidget> {
   void initState() {
     super.initState();
 
-    loadUiImage("assets/Wappen_Höpfigheim.png");
+    loadUiImage("assets/Wappen.png");
 
-    FlutterCompass.events.listen(_onData);
+    compassStream = FlutterCompass.events.listen(_onData);
     positionStream = getPositionStream(desiredAccuracy: LocationAccuracy.high)
         .listen((Position position) {
       setState(() {
         currentPosition = position;
       });
     });
+  }
+
+  void dispose() {
+    super.dispose();
+
+    compassStream.cancel();
+    positionStream.cancel();
   }
 
   void _onData(double x) => setState(() {
@@ -165,7 +173,7 @@ class _CompassWidgetState extends State<CompassWidget> {
 
     return _image == null
         ? FutureBuilder<ui.Image>(
-            future: loadUiImage("assets/Nadel.png"),
+            future: loadUiImage("assets/Wappen_gedreht.png"),
             builder: (BuildContext context, AsyncSnapshot<ui.Image> snapshot) {
               switch (snapshot.connectionState) {
                 case ConnectionState.waiting:
