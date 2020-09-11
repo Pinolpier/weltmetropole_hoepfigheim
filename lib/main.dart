@@ -21,12 +21,13 @@ class Compass extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return CupertinoApp(
+      debugShowCheckedModeBanner: false,
       title: 'Weltmetropole Höpfigheim',
       theme: CupertinoThemeData(
           brightness: Brightness.dark,
           primaryColor: Colors.indigo,
-          barBackgroundColor: Colors.blueAccent,
-          scaffoldBackgroundColor: Colors.indigo),
+          barBackgroundColor: Colors.indigo[900],
+          scaffoldBackgroundColor: Colors.black),
       home: CupertinoPageScaffold(
         navigationBar:
             CupertinoNavigationBar(middle: Text("Weltmetropole Höpfigheim")),
@@ -48,6 +49,7 @@ class CompassWidget extends StatefulWidget {
 class _CompassWidgetState extends State<CompassWidget> {
   ui.Image _image;
 
+  double _distance = 0;
   double _heading = 0;
   Position currentPosition;
 
@@ -73,6 +75,7 @@ class _CompassWidgetState extends State<CompassWidget> {
   void _onData(double x) => setState(() {
         if (currentPosition == null) {
           _heading = x;
+          _distance = 0;
         } else {
           // _heading = x -
           //     _getOffsetFromNorth(
@@ -83,6 +86,8 @@ class _CompassWidgetState extends State<CompassWidget> {
                   currentPosition.longitude,
                   48.981298,
                   9.239052); //Jonas Poolmitte
+          _distance = _getDistance(currentPosition.latitude,
+              currentPosition.longitude, 48.981298, 9.239052);
           // _heading = x -
           //     _getOffsetFromNorth(
           //         currentPosition.latitude,
@@ -105,8 +110,26 @@ class _CompassWidgetState extends State<CompassWidget> {
     return (z * 180 / pi + 360) % 360;
   }
 
+  double _getDistance(double currentLat, double currentLong, double targetLat,
+      double targetLong) {
+    const R = 6371e3; // metres
+    double currentLatRad = currentLat * pi / 180; // φ, λ in radians
+    double targetLatRad = targetLat * pi / 180;
+    double calcLatRad = (targetLat - currentLat) * pi / 180;
+    double calcLongRad = (targetLong - currentLong) * pi / 180;
+
+    double a = sin(calcLatRad / 2) * sin(calcLatRad / 2) +
+        cos(currentLatRad) *
+            cos(targetLatRad) *
+            sin(calcLongRad / 2) *
+            sin(calcLongRad / 2);
+    double c = 2 * atan2(sqrt(a), sqrt(1 - a));
+
+    return R * c / 1000; // in km
+  }
+
   final TextStyle _style =
-      TextStyle(color: Colors.black, fontSize: 32, fontWeight: FontWeight.bold);
+      TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold);
 
   Future<ui.Image> loadUiImage(String imageAssetPath) async {
     final ByteData data = await rootBundle.load(imageAssetPath);
@@ -120,7 +143,6 @@ class _CompassWidgetState extends State<CompassWidget> {
     });
     return completer.future;
   }
-
 
   Widget build(BuildContext context) {
     // return FutureBuilder(future: checkPermission(), builder: (BuildContext context, AsyncSnapshot<LocationPermission> snapshot) {
@@ -144,44 +166,69 @@ class _CompassWidgetState extends State<CompassWidget> {
     return _image == null
         ? FutureBuilder<ui.Image>(
             future: loadUiImage("assets/Nadel.png"),
-            // a Future<String> or null
             builder: (BuildContext context, AsyncSnapshot<ui.Image> snapshot) {
               switch (snapshot.connectionState) {
                 case ConnectionState.waiting:
                   return new Text('Image loading...');
                 default:
-                  if (snapshot.hasError) {
-                    return CustomPaint(
-                      foregroundPainter: CompassPainter(angle: _heading, image: _image),
-                      child: Center(
-                        child: Text(_readout, style: _style),
-                      ),
-                    );
-                  } else {
+                  if (!snapshot.hasError) {
                     _image = snapshot.data;
-                    return CustomPaint(
-                      foregroundPainter:
-                          CompassPainter(angle: _heading, image: _image),
-                      child: Center(
-                        child: Text(_readout, style: _style),
-                      ),
-                    );
                   }
+                  return CustomPaint(
+                    foregroundPainter: CompassPainter(
+                      angle: _heading,
+                      distance: _distance,
+                      image: _image,
+                    ),
+                    child: Center(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(_readout, style: _style),
+                          _distance > 100
+                              ? Text('${_distance.toStringAsFixed(0)} km',
+                                  style: _style)
+                              : Text('${_distance.toStringAsFixed(2)} km',
+                                  style: _style),
+                        ],
+                      ),
+                    ),
+                  );
               }
             },
           )
         : CustomPaint(
-            foregroundPainter: CompassPainter(angle: _heading, image: _image),
+            foregroundPainter: CompassPainter(
+              angle: _heading,
+              image: _image,
+            ),
             child: Center(
-              child: Text(_readout, style: _style),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(_readout, style: _style),
+                  _distance > 100
+                      ? Text('${_distance.toStringAsFixed(0)} km',
+                          style: _style)
+                      : Text('${_distance.toStringAsFixed(2)} km',
+                          style: _style),
+                ],
+              ),
             ),
           );
   }
 }
 
 class CompassPainter extends CustomPainter {
-  CompassPainter({@required this.angle, @required this.image}) : super();
+  CompassPainter({
+    @required this.angle,
+    @required this.distance,
+    @required this.image,
+  }) : super();
 
+  final double distance;
   final double angle;
   final ui.Image image;
 
@@ -192,9 +239,9 @@ class CompassPainter extends CustomPainter {
     ..strokeWidth = 2.0;
 
   void paint(Canvas canvas, Size size) {
-    Paint circle = _brush..color = Colors.black;
+    Paint circle = _brush..color = Colors.white;
 
-    Paint needle = _brush..color = Colors.red[400];
+    Paint needle = _brush..color = Colors.red[800];
 
     double radius = min(size.width / 2.2, size.height / 2.2);
     Offset center = Offset(size.width / 2, size.height / 2);
