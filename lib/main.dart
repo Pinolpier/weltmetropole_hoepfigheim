@@ -1,38 +1,59 @@
+// based on this tutorial:
+// https://itnext.io/build-a-compass-app-in-flutter-b49a78aa951d
+
+import 'dart:async';
+import 'dart:math';
+
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_compass/flutter_compass.dart';
+import 'package:geolocator/geolocator.dart';
 
 void main() {
-  runApp(MyApp());
+  runApp(Compass());
 }
 
-class MyApp extends StatelessWidget {
+class Compass extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // Try running your application with "flutter run". You'll see the
-        // application has a blue toolbar. Then, without quitting the app, try
-        // changing the primarySwatch below to Colors.green and then invoke
-        // "hot reload" (press "r" in the console where you ran "flutter run",
-        // or simply save your changes to "hot reload" in a Flutter IDE).
-        // Notice that the counter didn't reset back to zero; the application
-        // is not restarted.
-        primarySwatch: Colors.blue,
-        // This makes the visual density adapt to the platform that you run
-        // the app on. For desktop platforms, the controls will be smaller and
-        // closer together (more dense) than on mobile platforms.
-        visualDensity: VisualDensity.adaptivePlatformDensity,
-      ),
-      home: MyHomePage(title: 'Flutter Demo Home Page'),
-    );
+    return CupertinoApp(
+        title: 'Weltmetropole Höpfigheim',
+        theme: CupertinoThemeData(
+            brightness: Brightness.dark,
+            primaryColor: Colors.indigo,
+            barBackgroundColor: Colors.blueAccent,
+            scaffoldBackgroundColor: Colors.indigo),
+        home: CupertinoPageScaffold(
+          navigationBar:
+              CupertinoNavigationBar(middle: Text("Weltmetropole Höpfigheim")),
+          child: CompassWidget(),
+        ));
+    // return MaterialApp(
+    //   title: 'Flutter Demo',
+    //   theme: ThemeData(
+    //     // This is the theme of your application.
+    //     //
+    //     // Try running your application with "flutter run". You'll see the
+    //     // application has a blue toolbar. Then, without quitting the app, try
+    //     // changing the primarySwatch below to Colors.green and then invoke
+    //     // "hot reload" (press "r" in the console where you ran "flutter run",
+    //     // or simply save your changes to "hot reload" in a Flutter IDE).
+    //     // Notice that the counter didn't reset back to zero; the application
+    //     // is not restarted.
+    //     primarySwatch: Colors.blue,
+    //     // This makes the visual density adapt to the platform that you run
+    //     // the app on. For desktop platforms, the controls will be smaller and
+    //     // closer together (more dense) than on mobile platforms.
+    //     visualDensity: VisualDensity.adaptivePlatformDensity,
+    //   ),
+    //   home: CompassWidget(title: 'Flutter Demo Home Page'),
+    // );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  MyHomePage({Key key, this.title}) : super(key: key);
+class CompassWidget extends StatefulWidget {
+  CompassWidget({Key key, this.title}) : super(key: key);
 
   // This widget is the home page of your application. It is stateful, meaning
   // that it has a State object (defined below) that contains fields that affect
@@ -46,72 +67,115 @@ class MyHomePage extends StatefulWidget {
   final String title;
 
   @override
-  _MyHomePageState createState() => _MyHomePageState();
+  _CompassWidgetState createState() => _CompassWidgetState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _CompassWidgetState extends State<CompassWidget> {
+  double _heading = 0;
+  Position currentPosition;
 
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+  StreamSubscription<Position> positionStream;
+
+  String get _readout =>
+      _heading.round() % 360 == 0 ? "0°" : _heading.toStringAsFixed(0) + '°';
+
+  void initState() {
+    super.initState();
+    FlutterCompass.events.listen(_onData);
+    positionStream = getPositionStream(desiredAccuracy: LocationAccuracy.high)
+        .listen((Position position) {
+      setState(() {
+        currentPosition = position;
+      });
     });
   }
 
-  @override
-  Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Invoke "debug painting" (press "p" in the console, choose the
-          // "Toggle Debug Paint" action from the Flutter Inspector in Android
-          // Studio, or the "Toggle Debug Paint" command in Visual Studio Code)
-          // to see the wireframe for each widget.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headline4,
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
-    );
+  void _onData(double x) => setState(() {
+        if (currentPosition == null) {
+          _heading = x;
+        } else {
+          // _heading = x -
+          //     _getOffsetFromNorth(
+          //         48.994719, 9.208169, 48.981298, 9.239052); //Test
+          _heading = x -
+              _getOffsetFromNorth(currentPosition.latitude, currentPosition.longitude,
+                  48.981298, 9.239052); //Jonas Poolmitte
+          // _heading = x -
+          //     _getOffsetFromNorth(
+          //         currentPosition.latitude,
+          //         currentPosition.longitude,
+          //         48.994719,
+          //         9.208169); //Markus Garten
+        }
+        _heading = _heading < 0 ? _heading + 360 : _heading;
+      });
+
+  double _getOffsetFromNorth(double currentLat, double currentLong,
+      double targetLat, double targetLong) {
+    double y =
+        sin((targetLong - currentLong) / 180 * pi) * cos(targetLat / 180 * pi);
+    double x = cos(currentLat / 180 * pi) * sin(targetLat / 180 * pi) -
+        sin(currentLat / 180 * pi) *
+            cos(targetLat / 180 * pi) *
+            cos((targetLong - currentLong) / 180 * pi);
+    double z = atan2(y, x);
+    return (z * 180 / pi + 360) % 360;
   }
+
+  final TextStyle _style =
+      TextStyle(color: Colors.black, fontSize: 32, fontWeight: FontWeight.bold);
+
+  Widget build(BuildContext context) {
+    // return FutureBuilder(future: checkPermission(), builder: (BuildContext context, AsyncSnapshot<LocationPermission> snapshot) {
+    //   if (snapshot.hasData) {
+    //     if (snapshot.data == LocationPermission.denied || snapshot.data == LocationPermission.deniedForever) {
+    //       requestPermission();
+    //     }
+    //     if (snapshot.data == LocationPermission.always || snapshot.data == LocationPermission.whileInUse) {
+    //       return CustomPaint(
+    //           foregroundPainter: CompassPainter(angle: _heading),
+    //           child: Center(child: Text(_readout, style: _style)));
+    //     }
+    //   } else if (snapshot.hasError) {
+    //     return Text("Kann nicht checken, ob Standort-Berechtigung erteilt ist. Sehr strange! Bitte Dev kontaktieren :P", style: TextStyle(color: Colors.red, fontSize: 40, fontWeight: FontWeight.bold));
+    //   } else {
+    //     return CupertinoActivityIndicator();
+    //   }
+    //   return CupertinoActivityIndicator();
+    // },);
+    return CustomPaint(
+        foregroundPainter: CompassPainter(angle: _heading),
+        child: Center(child: Text(_readout, style: _style)));
+  }
+}
+
+class CompassPainter extends CustomPainter {
+  CompassPainter({@required this.angle}) : super();
+
+  final double angle;
+
+  double get rotation => -2 * pi * (angle / 360);
+
+  Paint get _brush => new Paint()
+    ..style = PaintingStyle.stroke
+    ..strokeWidth = 2.0;
+
+  void paint(Canvas canvas, Size size) {
+    Paint circle = _brush..color = Colors.black;
+
+    Paint needle = _brush..color = Colors.red[400];
+
+    double radius = min(size.width / 2.2, size.height / 2.2);
+    Offset center = Offset(size.width / 2, size.height / 2);
+    Offset start = Offset.lerp(Offset(center.dx, radius), center, .4);
+    Offset end = Offset.lerp(Offset(center.dx, radius), center, 0.1);
+
+    canvas.translate(center.dx, center.dy);
+    canvas.rotate(rotation);
+    canvas.translate(-center.dx, -center.dy);
+    canvas.drawLine(start, end, needle);
+    canvas.drawCircle(center, radius, circle);
+  }
+
+  bool shouldRepaint(CustomPainter oldDelegate) => true;
 }
